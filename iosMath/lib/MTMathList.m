@@ -76,6 +76,8 @@ static NSString* typeToText(MTMathAtomType type) {
             return @"Color";
         case kMTMathAtomColorbox:
             return @"Colorbox";
+        case kMTMathAtomOverlap:
+            return @"Overlap";
         case kMTMathAtomTable:
             return @"Table";
     }
@@ -159,6 +161,9 @@ static NSString* fractionCommandForDelimiterPair(NSString* leftDelimiter, NSStri
         case kMTMathAtomColor:
             return [[MTMathColor alloc] init];
             
+        case kMTMathAtomOverlap:
+            return [[MTOverlap alloc] init];
+
         case kMTMathAtomColorbox:
             return [[MTMathColorbox alloc] init];
             
@@ -996,6 +1001,54 @@ static NSString* fractionCommandForDelimiterPair(NSString* leftDelimiter, NSStri
 
 @end
 
+
+#pragma mark - MTOverlap
+
+@implementation MTOverlap
+
+- (instancetype)init
+{
+    self = [super initWithType:kMTMathAtomOverlap value:@""];
+    return self;
+}
+
+- (instancetype)initWithType:(MTMathAtomType)type value:(NSString *)value
+{
+    if (type == kMTMathAtomOverlap) {
+        return [self init];
+    }
+    @throw [NSException exceptionWithName:@"InvalidMethod"
+                                   reason:@"[MTOverlap initWithType:value:] cannot be called. Use [MTOverlap init] instead."
+                                 userInfo:nil];
+}
+
+- (NSString *)stringValue
+{
+    NSString* command;
+    switch (self.alignment) {
+        case kMTOverlapRight: command = @"\\rlap"; break;
+        case kMTOverlapLeft: command = @"\\llap"; break;
+        case kMTOverlapCenter: command = @"\\clap"; break;
+    }
+    return [NSString stringWithFormat:@"%@{%@}", command, self.innerList.stringValue];
+}
+
+- (id)copyWithZone:(NSZone *)zone
+{
+    MTOverlap* op = [super copyWithZone:zone];
+    op.innerList = [self.innerList copyWithZone:zone];
+    op->_alignment = self.alignment;
+    return op;
+}
+
+- (instancetype)finalized
+{
+    MTOverlap *newInner = [super finalized];
+    newInner.innerList = newInner.innerList.finalized;
+    return newInner;
+}
+
+@end
 
 #pragma mark - MTMathTable
 

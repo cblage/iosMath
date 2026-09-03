@@ -682,6 +682,34 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
                 break;
             }
 
+            case kMTMathAtomOverlap: {
+                // \rlap, \llap, \clap: the content typesets in full and hangs
+                // off the current position WITHOUT advancing it — its width
+                // is zero to the line, so what follows lands on top of it.
+                // Spaced as Ord on the way in, like a box.
+                if (_currentLine.length > 0) {
+                    [self addDisplayLine];
+                }
+                [self addInterElementSpace:prevNode currentType:atom.type];
+                MTOverlap* overlap = (MTOverlap*) atom;
+                MTDisplay* display = [MTTypesetter createLineForMathList:overlap.innerList font:_font style:_style];
+                CGPoint position = _currentPosition;
+                switch (overlap.alignment) {
+                    case kMTOverlapRight:
+                        break;
+                    case kMTOverlapLeft:
+                        position.x -= display.width;
+                        break;
+                    case kMTOverlapCenter:
+                        position.x -= display.width / 2;
+                        break;
+                }
+                display.position = position;
+                display.width = 0;
+                [_displayAtoms addObject:display];
+                break;
+            }
+
             case kMTMathAtomText: {
                 // Flush any pending math run so the text block stands alone.
                 if (_currentLine.length > 0) {

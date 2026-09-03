@@ -962,6 +962,22 @@ static const NSInteger kMTMaxRecursionDepth = 150;
         mathColorbox.colorString = colorStr;
         mathColorbox.innerList = [self buildInternal:true];
         return mathColorbox;
+    } else if ([command isEqualToString:@"rlap"] || [command isEqualToString:@"mathrlap"]
+               || [command isEqualToString:@"llap"] || [command isEqualToString:@"mathllap"]
+               || [command isEqualToString:@"clap"] || [command isEqualToString:@"mathclap"]) {
+        // Zero-width boxes: the argument typesets in full and hangs off the
+        // position without advancing it (owner-hit 2026-09-03: an arrow
+        // label in a commutative diagram, \rlap{\scriptstyle g}).
+        MTOverlap* overlap = [[MTOverlap alloc] init];
+        if ([command hasSuffix:@"rlap"]) {
+            overlap.alignment = kMTOverlapRight;
+        } else if ([command hasSuffix:@"llap"]) {
+            overlap.alignment = kMTOverlapLeft;
+        } else {
+            overlap.alignment = kMTOverlapCenter;
+        }
+        overlap.innerList = [self buildInternal:true];
+        return overlap;
     } else {
         NSString* errorMessage = [NSString stringWithFormat:@"Invalid command \\%@", command];
         [self setError:MTParseErrorInvalidCommand message:errorMessage];

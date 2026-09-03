@@ -82,6 +82,8 @@ typedef NS_ENUM(NSUInteger, MTMathAtomType)
     kMTMathAtomStyle,
     kMTMathAtomColor,
     kMTMathAtomColorbox,
+    /// A zero-width box: LaTeX's \rlap, \llap, and \clap.
+    kMTMathAtomOverlap,
     
     // Atoms after this point are not part of TeX and do not have the usual structure.
     
@@ -605,6 +607,35 @@ typedef NS_ENUM(NSUInteger, MTMathStackConstructionKind) {
 
 /** The style represented by this object. */
 @property (nonatomic, nullable) NSString* colorString;
+
+/// The inner math list
+@property (nonatomic, nullable) MTMathList* innerList;
+
+@end
+
+/** How an `MTOverlap` hangs its content off its zero-width position. */
+typedef NS_ENUM(NSUInteger, MTOverlapAlignment) {
+    /// `\rlap`: the content extends to the right of the position.
+    kMTOverlapRight,
+    /// `\llap`: the content ends at the position, extending to the left.
+    kMTOverlapLeft,
+    /// `\clap`: the content is centred on the position.
+    kMTOverlapCenter,
+};
+
+/** An atom whose content takes NO width — LaTeX's `\rlap`, `\llap`, and
+ `\clap`, and their `\math…` forms: the inner list is typeset in full and
+ drawn hanging off the current position, which does not advance. Used to
+ label the arrows of commutative diagrams and to overprint.
+ @note None of the usual fields of the `MTMathAtom` apply even though this
+ class inherits from `MTMathAtom`. */
+@interface MTOverlap : MTMathAtom
+
+/// Creates an empty overlap hanging to the right
+- (instancetype) init NS_DESIGNATED_INITIALIZER;
+
+/// Which way the content hangs.
+@property (nonatomic) MTOverlapAlignment alignment;
 
 /// The inner math list
 @property (nonatomic, nullable) MTMathList* innerList;
