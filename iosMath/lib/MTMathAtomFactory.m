@@ -97,10 +97,21 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
 + (nullable MTMathAtom *)atomForCharacter:(unichar)ch
 {
     NSString *chStr = [NSString stringWithCharacters:&ch length:1];
-    if (ch < 0x21 || ch > 0x7E) {
-        // skip non ascii characters and spaces. Non-Latin text must be
-        // wrapped in \text*, \textbf{...}, etc.
+    if (ch < 0x21 || (ch >= 0x7F && ch <= 0xA0) || ch == 0x2028 || ch == 0x2029) {
+        // Spaces and controls, ASCII and C1 alike, plus the no-break space
+        // and the line and paragraph separators: nothing to draw.
         return nil;
+    } else if (ch >= 0xD800 && ch <= 0xDFFF) {
+        // A lone surrogate half draws nothing; the builder pairs them
+        // before asking here.
+        return nil;
+    } else if (ch > 0xA0) {
+        // A printable NON-ASCII character is itself: the math font lacks
+        // most of them and CoreText's cascade draws them from a system
+        // face. The old rule skipped every one silently — \⌘ vanished,
+        // Greek or CJK typed bare vanished — and demanded a \text wrapper
+        // the writer never sees a reason for.
+        return [MTMathAtom atomWithType:kMTMathAtomOrdinary value:chStr];
     } else if (ch == '$' || ch == '%' || ch == '#' || ch == '&' || ch == '~' || ch == '\'') {
         // These are latex control characters that have special meanings. We don't support them.
         return nil;

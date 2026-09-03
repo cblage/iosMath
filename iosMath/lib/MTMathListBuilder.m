@@ -174,6 +174,15 @@ static const NSInteger kMTMaxRecursionDepth = 150;
     @try {
     MTMathList* list = [MTMathList new];
     NSAssert(!(oneCharOnly && (stop > 0)), @"Cannot set both oneCharOnly and stopChar.");
+    if (oneCharOnly && ![self hasCharacters]) {
+        // A required argument at the end of the input — \frac{1} with no
+        // denominator, \sqrt or x^ with nothing after. The empty list this
+        // returned typeset a bar over nothing and a script of nothing, so
+        // the caller, and the host showing its error, never learned the
+        // input was cut short.
+        [self setError:MTParseErrorCharacterNotFound message:@"Missing argument"];
+        return nil;
+    }
     MTMathAtom* prevAtom = nil;
     while([self hasCharacters]) {
         if (_error) {
@@ -288,7 +297,13 @@ static const NSInteger kMTMaxRecursionDepth = 150;
                 }
                 continue;
             }
-            atom = [self atomForCommand:command];
+            if (command.length > 0 && [command characterAtIndex:0] > 0x7E) {
+                // The escaped non-ASCII character readCommand passed through:
+                // the character itself, as an ordinary atom.
+                atom = [MTMathAtom atomWithType:kMTMathAtomOrdinary value:command];
+            } else {
+                atom = [self atomForCommand:command];
+            }
             if (atom == nil) {
                 // this was an unknown command,
                 // we flag an error and return
@@ -359,7 +374,22 @@ static const NSInteger kMTMaxRecursionDepth = 150;
             // If spaces are allowed then spaces do not need escaping with a \ before being used.
             atom = [MTMathAtomFactory atomForLatexSymbolName:@" "];
         } else {
-            atom = [MTMathAtomFactory atomForCharacter:ch];
+            if (ch >= 0xD800 && ch <= 0xDBFF && [self hasCharacters]) {
+                // A surrogate pair is ONE character — an emoji, a rare
+                // ideograph — and its halves would each have made an atom
+                // that draws nothing.
+                unichar low = [self getNextCharacter];
+                if (low >= 0xDC00 && low <= 0xDFFF) {
+                    unichar pair[2] = { ch, low };
+                    atom = [MTMathAtom atomWithType:kMTMathAtomOrdinary
+                                              value:[NSString stringWithCharacters:pair length:2]];
+                } else {
+                    [self unlookCharacter];
+                }
+            }
+            if (!atom) {
+                atom = [MTMathAtomFactory atomForCharacter:ch];
+            }
             if (!atom) {
                 // Not a recognized character
                 continue;
@@ -520,6 +550,18 @@ static const NSInteger kMTMaxRecursionDepth = 150;
                 [body appendString:@" "];
             } else if ([escapable characterIsMember:esc]) {
                 [body appendFormat:@"%C", esc];
+            } else if (esc > 0x7E) {
+                // A backslash before a non-ASCII character means the
+                // character, in text as in math.
+                [body appendFormat:@"%C", esc];
+                if (esc >= 0xD800 && esc <= 0xDBFF && [self hasCharacters]) {
+                    unichar low = [self getNextCharacter];
+                    if (low >= 0xDC00 && low <= 0xDFFF) {
+                        [body appendFormat:@"%C", low];
+                    } else {
+                        [self unlookCharacter];
+                    }
+                }
             } else {
                 [self setError:MTParseErrorInvalidCommand
                        message:[NSString stringWithFormat:
@@ -664,7 +706,9 @@ static const NSInteger kMTMaxRecursionDepth = 150;
     static NSSet<NSNumber*>* singleCharCommands = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        NSArray* singleChars = @[ @'{', @'}', @'$', @'#', @'%', @'_', @'|', @' ', @',', @'>', @';', @'!', @'\\' ];
+        // \& is the literal ampersand: the factory has always known it, but
+        // the reader never handed it over, so it read as an empty command.
+        NSArray* singleChars = @[ @'{', @'}', @'$', @'#', @'%', @'_', @'|', @' ', @',', @'>', @';', @'!', @'\\', @'&' ];
         singleCharCommands = [[NSSet alloc] initWithArray:singleChars];
     });
     if ([self hasCharacters]) {
@@ -672,6 +716,20 @@ static const NSInteger kMTMaxRecursionDepth = 150;
         unichar ch = [self getNextCharacter];
         // Single char commands
         if ([singleCharCommands containsObject:@(ch)]) {
+            return [NSString stringWithCharacters:&ch length:1];
+        } else if (ch > 0x7E) {
+            // A backslash before a NON-ASCII character names no command in
+            // any engine; the writer meant the character (\⌘, \é). It is
+            // read as a one-character command and the builder turns it into
+            // the character itself. A surrogate pair is one character.
+            if (ch >= 0xD800 && ch <= 0xDBFF && [self hasCharacters]) {
+                unichar low = [self getNextCharacter];
+                if (low >= 0xDC00 && low <= 0xDFFF) {
+                    unichar pair[2] = { ch, low };
+                    return [NSString stringWithCharacters:pair length:2];
+                }
+                [self unlookCharacter];
+            }
             return [NSString stringWithCharacters:&ch length:1];
         } else {
             // not a known single character command
@@ -1069,7 +1127,9 @@ static const NSInteger kMTMaxRecursionDepth = 150;
         }
     }
     if (!_currentEnv.ended && _currentEnv.envName) {
-        [self setError:MTParseErrorMissingEnd message:@"Missing \\end"];
+        // Named, so a host's error box says which environment is open.
+        [self setError:MTParseErrorMissingEnd
+               message:[NSString stringWithFormat:@"Missing \\end{%@}", _currentEnv.envName]];
         return nil;
     }
     NSError* error;
