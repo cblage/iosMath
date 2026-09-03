@@ -915,6 +915,9 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         aliases = @{
+                    // LaTeX's short forms of the daggers.
+                    @"dag" : @"dagger",
+                    @"ddag" : @"ddagger",
                     @"lnot" : @"neg",
                     @"land" : @"wedge",
                     @"lor" : @"vee",
