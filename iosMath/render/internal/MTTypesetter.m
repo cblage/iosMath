@@ -76,14 +76,17 @@ NSUInteger getInterElementSpaceArrayIndexForType(MTMathAtomType type, BOOL row) 
                 // They have the same spacing as ordinary except with ordinary.
                 return 8;
             } else {
-                NSCAssert(false, @"Interelement space undefined for radical on the right. Treat radical as ordinary.");
-                return -1;
+                // Treated as ordinary, as the note above says: the -1 this
+                // returned indexed the space table as NSUIntegerMax and
+                // raised NSRangeException in every build, assertion or not.
+                return 0;
             }
         }
-            
+
         default:
-            NSCAssert(false, @"Interelement space undefined for type %lu", (unsigned long)type);
-            return -1;
+            // Any type the table does not know spaces as ordinary, for the
+            // same reason.
+            return 0;
     }
 }
 
@@ -1029,8 +1032,25 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
     NSArray* spaceArray = getInterElementSpaces()[leftIndex];
     NSNumber* spaceTypeObj = spaceArray[rightIndex];
     MTInterElementSpaceType spaceType = spaceTypeObj.intValue;
-    NSAssert(spaceType != kMTSpaceInvalid, @"Invalid space between %lu and %lu", (unsigned long)left, (unsigned long)right);
-    
+    if (spaceType == kMTSpaceInvalid) {
+        // Every invalid entry has a binary operator on one side, and TeX's
+        // rules 5 and 6 (Appendix G) set such an operator as ordinary: one
+        // that follows a binary, operator, relation, open, or punctuation
+        // (the right side here), or one that precedes a relation, close, or
+        // punctuation (the left). MTMathList's finalize applies them within
+        // a list, but a list's last atom before a \right boundary — spaced
+        // against a close below — reaches here with the binary intact, and
+        // the assertion that stood here aborted a Debug host for it while
+        // a Release build silently returned no space at all.
+        if (right == kMTMathAtomBinaryOperator) {
+            return [self getInterElementSpace:left right:kMTMathAtomOrdinary];
+        }
+        if (left == kMTMathAtomBinaryOperator) {
+            return [self getInterElementSpace:kMTMathAtomOrdinary right:right];
+        }
+        return 0;
+    }
+
     int spaceMultipler = [self getSpacingInMu:spaceType];
     if (spaceMultipler > 0) {
         // 1 em = size of font in pt. space multipler is in multiples mu or 1/18 em
