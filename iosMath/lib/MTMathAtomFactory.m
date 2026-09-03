@@ -1127,6 +1127,12 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                        @"bf": @(kMTFontStyleBold),
                        @"mathcal": @(kMTFontStyleCaligraphic),
                        @"cal": @(kMTFontStyleCaligraphic),
+                       // mathrsfs' script alphabet. Unicode has ONE
+                       // mathematical script block, which is what \mathcal
+                       // already maps to; TeX tells the two apart by font
+                       // alone, and the math font carries one face.
+                       @"mathscr": @(kMTFontStyleCaligraphic),
+                       @"scr": @(kMTFontStyleCaligraphic),
                        @"mathtt": @(kMTFontStyleTypewriter),
                        @"mathit": @(kMTFontStyleItalic),
                        @"mit": @(kMTFontStyleItalic),
