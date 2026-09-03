@@ -35,10 +35,18 @@
 
 @end
 
+static NSString* const kConstants = @"constants";
+
 @implementation MTFontMathTable {
     NSUInteger _unitsPerEm;
     CGFloat _fontSize;
     NSDictionary* _Nonnull _mathTable;
+    /// Every constant converted to points ONCE, at init: the typesetter
+    /// asks for fraction, script, and radical constants per atom, and each
+    /// ask was two dictionary lookups plus the unit arithmetic. A table
+    /// lives as long as its font, and sized fonts are cached, so this is
+    /// paid once per size.
+    NSDictionary<NSString*, NSNumber*>* _Nonnull _constantsInPt;
 }
 
 - (instancetype)initWithFont:(nonnull MTFont*) font mathTable:(nonnull NSDictionary*) mathTable
@@ -58,6 +66,12 @@
                                            reason:[NSString stringWithFormat:@"Invalid version of math table plist: %@", _mathTable[@"version"]]
                                          userInfo:nil];
         }
+        NSDictionary* consts = (NSDictionary*) _mathTable[kConstants];
+        NSMutableDictionary<NSString*, NSNumber*>* inPt = [NSMutableDictionary dictionaryWithCapacity:consts.count];
+        for (NSString* name in consts) {
+            inPt[name] = @([self fontUnitsToPt:((NSNumber*) consts[name]).intValue]);
+        }
+        _constantsInPt = inPt;
     }
     return self;
 }
@@ -72,13 +86,9 @@
     return _fontSize/18;
 }
 
-static NSString* const kConstants = @"constants";
-
 - (CGFloat) constantFromTable:(NSString*) constName
 {
-    NSDictionary* consts = (NSDictionary*) _mathTable[kConstants];
-    NSNumber* val = (NSNumber*)consts[constName];
-    return [self fontUnitsToPt:val.intValue];
+    return _constantsInPt[constName].doubleValue;
 }
 
 - (CGFloat) percentFromTable:(NSString*) percentName
