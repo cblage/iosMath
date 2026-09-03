@@ -1448,11 +1448,9 @@ static NSArray* getTestDataLeftRight() {
 
 static NSArray* getTestDataParseErrors() {
     return @[
-              @[@"}a", @(MTParseErrorMismatchBraces)],
               @[@"\\notacommand", @(MTParseErrorInvalidCommand)],
               @[@"\\sqrt[5+3", @(MTParseErrorCharacterNotFound)],
               @[@"{5+3", @(MTParseErrorMismatchBraces)],
-              @[@"5+3}", @(MTParseErrorMismatchBraces)],
               @[@"{1+\\frac{3+2", @(MTParseErrorMismatchBraces)],
               @[@"1+\\left", @(MTParseErrorMissingDelimiter)],
               @[@"\\left(\\frac12\\right", @(MTParseErrorMissingDelimiter)],
@@ -3218,6 +3216,25 @@ static NSArray* getTestDataLargeDelimiters() {
     // Serialization must stay \left< x\right>  (unchanged round-trip)
     NSString* serialized = [MTMathListBuilder mathListToString:leftRightList];
     XCTAssertEqualObjects(serialized, @"\\left< x\\right> ", @"serialized LaTeX unchanged");
+}
+
+- (void) testGracefullyDiscardExtraClosingBraces {
+    NSError *error = nil;
+    MTMathList *list1 = [MTMathListBuilder buildFromString:@"}a" error:&error];
+    XCTAssertNotNil(list1);
+    XCTAssertNil(error);
+    XCTAssertEqualObjects([MTMathListBuilder mathListToString:list1], @"a");
+
+    MTMathList *list2 = [MTMathListBuilder buildFromString:@"5+3}" error:&error];
+    XCTAssertNotNil(list2);
+    XCTAssertNil(error);
+    XCTAssertEqualObjects([MTMathListBuilder mathListToString:list2], @"5+3");
+
+    // Deeply nested continued fraction with extra trailing brace
+    NSString *continuedFractionWithExtraBrace = @"\\left[1+\\frac{1}{2+\\frac{3}{4+\\frac{5}{6+\\frac{7}{8}}}}\\right]^{-\\frac12}";
+    MTMathList *list3 = [MTMathListBuilder buildFromString:continuedFractionWithExtraBrace error:&error];
+    XCTAssertNotNil(list3);
+    XCTAssertNil(error);
 }
 
 @end

@@ -242,11 +242,9 @@ static const NSInteger kMTMaxRecursionDepth = 150;
         } else if (ch == '}') {
             NSAssert(!oneCharOnly, @"This should have been handled before");
             NSAssert(stop == 0, @"This should have been handled before");
-            // We encountered a closing brace when there is no stop set, that means there was no
-            // corresponding opening brace.
-            NSString* errorMessage = @"Mismatched braces.";
-            [self setError:MTParseErrorMismatchBraces message:errorMessage];
-            return nil;
+            // An unmatched closing brace at top level: gracefully discard it
+            // rather than failing the entire formula with a mismatched braces error.
+            continue;
         } else if (ch == '\\') {
             // \ means a command
             NSString* command = [self readCommand];
