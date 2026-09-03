@@ -962,6 +962,58 @@ static const NSInteger kMTMaxRecursionDepth = 150;
         mathColorbox.colorString = colorStr;
         mathColorbox.innerList = [self buildInternal:true];
         return mathColorbox;
+    } else if ([command isEqualToString:@"not"]) {
+        // \not negates the symbol after it. Unicode has a designed glyph for
+        // the common relations, and those read far better than TeX's own
+        // slash overprint, so the next token is peeked: a base with a
+        // precomposed negation becomes that character under the base's own
+        // type; anything else — \not\partial, the Feynman slash — gets
+        // TeX's fallback, a zero-width slash the next symbol prints over.
+        static NSDictionary<NSString*, NSString*>* negations = nil;
+        static dispatch_once_t negationsOnce;
+        dispatch_once(&negationsOnce, ^{
+            negations = @{
+                @"=" : @"≠", @"<" : @"≮", @">" : @"≯",
+                @"in" : @"∉", @"ni" : @"∌", @"equiv" : @"≢",
+                @"sim" : @"≁", @"simeq" : @"≄", @"cong" : @"≇",
+                @"approx" : @"≉", @"leq" : @"≰", @"le" : @"≰",
+                @"geq" : @"≱", @"ge" : @"≱",
+                @"subset" : @"⊄", @"supset" : @"⊅",
+                @"subseteq" : @"⊈", @"supseteq" : @"⊉",
+                @"parallel" : @"∦", @"mid" : @"∤", @"exists" : @"∄",
+                @"prec" : @"⊀", @"succ" : @"⊁",
+                @"rightarrow" : @"↛", @"to" : @"↛", @"leftarrow" : @"↚",
+                @"Rightarrow" : @"⇏", @"Leftarrow" : @"⇍",
+                @"Leftrightarrow" : @"⇎", @"iff" : @"⇎",
+                @"vdash" : @"⊬", @"models" : @"⊭",
+            };
+        });
+        [self skipSpaces];
+        if ([self hasCharacters]) {
+            int saved = _currentChar;
+            unichar next = [self getNextCharacter];
+            NSString* baseName = nil;
+            if (next == '\\') {
+                baseName = [self readCommand];
+            } else if (next == '=' || next == '<' || next == '>') {
+                baseName = [NSString stringWithCharacters:&next length:1];
+            }
+            NSString* negated = baseName ? negations[baseName] : nil;
+            if (negated) {
+                // The base's type — a relation stays a relation — under the
+                // negated character; the factory resolves aliases, so \not\le
+                // and \not\to negate through them.
+                MTMathAtom* base = [MTMathAtomFactory atomForLatexSymbolName:baseName]
+                    ?: [MTMathAtomFactory atomForCharacter:next];
+                return [MTMathAtom atomWithType:(base ? base.type : kMTMathAtomRelation) value:negated];
+            }
+            // Not a known base: the token is put back for the ordinary path.
+            _currentChar = saved;
+        }
+        MTOverlap* slash = [[MTOverlap alloc] init];
+        slash.alignment = kMTOverlapRight;
+        slash.innerList = [MTMathList mathListWithAtoms:[MTMathAtom atomWithType:kMTMathAtomOrdinary value:@"/"], nil];
+        return slash;
     } else if ([command isEqualToString:@"rlap"] || [command isEqualToString:@"mathrlap"]
                || [command isEqualToString:@"llap"] || [command isEqualToString:@"mathllap"]
                || [command isEqualToString:@"clap"] || [command isEqualToString:@"mathclap"]) {
