@@ -2832,4 +2832,33 @@
                          @"Display must contain at least one sub-display");
 }
 
+- (void)testOverlapBoxesRetainInkBounds {
+    MTMathList* rlapOnly = [MTMathListBuilder buildFromString:@"\\rlap{wide}"];
+    MTMathListDisplay* rlapDisplay = [MTTypesetter createLineForMathList:rlapOnly font:self.font style:kMTLineStyleDisplay];
+    XCTAssertGreaterThan(rlapDisplay.width, 1.0, @"\\rlap should retain ink bounds");
+
+    MTMathList* llapOnly = [MTMathListBuilder buildFromString:@"\\llap{wide}"];
+    MTMathListDisplay* llapDisplay = [MTTypesetter createLineForMathList:llapOnly font:self.font style:kMTLineStyleDisplay];
+    XCTAssertGreaterThan(llapDisplay.width, 1.0, @"\\llap should retain ink bounds");
+    for (MTDisplay* sub in llapDisplay.subDisplays) {
+        XCTAssertGreaterThanOrEqual(sub.position.x, 0.0, @"Subdisplays must not have negative x positions");
+    }
+
+    MTMathList* clapOnly = [MTMathListBuilder buildFromString:@"\\clap{wide}"];
+    MTMathListDisplay* clapDisplay = [MTTypesetter createLineForMathList:clapOnly font:self.font style:kMTLineStyleDisplay];
+    XCTAssertGreaterThan(clapDisplay.width, 1.0, @"\\clap should retain ink bounds");
+    for (MTDisplay* sub in clapDisplay.subDisplays) {
+        XCTAssertGreaterThanOrEqual(sub.position.x, 0.0, @"Subdisplays must not have negative x positions");
+    }
+
+    // Zero advance: \rlap{a}b places b at position 0
+    MTMathList* rlapFollowed = [MTMathListBuilder buildFromString:@"\\rlap{a}b"];
+    MTMathListDisplay* followedDisplay = [MTTypesetter createLineForMathList:rlapFollowed font:self.font style:kMTLineStyleDisplay];
+    XCTAssertEqual(followedDisplay.subDisplays.count, 2);
+    MTDisplay* first = followedDisplay.subDisplays[0];
+    MTDisplay* second = followedDisplay.subDisplays[1];
+    XCTAssertEqualWithAccuracy(first.position.x, 0.0, 0.001);
+    XCTAssertEqualWithAccuracy(second.position.x, 0.0, 0.001);
+}
+
 @end

@@ -308,6 +308,7 @@ static BOOL isIos6Supported(void) {
     CGFloat max_ascent = 0;
     CGFloat max_descent = 0;
     CGFloat max_width = 0;
+    CGFloat min_x = 0;
     for (MTDisplay* atom in self.subDisplays) {
         CGFloat ascent = MAX(0, atom.position.y + atom.ascent);
         if (ascent > max_ascent) {
@@ -318,10 +319,22 @@ static BOOL isIos6Supported(void) {
         if (descent > max_descent) {
             max_descent = descent;
         }
+        if (atom.position.x < min_x) {
+            min_x = atom.position.x;
+        }
         CGFloat width = atom.width + atom.position.x;
         if (width > max_width) {
             max_width = width;
         }
+    }
+    if (min_x < 0) {
+        CGFloat shift = -min_x;
+        for (MTDisplay* atom in self.subDisplays) {
+            CGPoint p = atom.position;
+            p.x += shift;
+            atom.position = p;
+        }
+        max_width += shift;
     }
     self.ascent = max_ascent;
     self.descent = max_descent;

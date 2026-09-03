@@ -705,7 +705,6 @@ static void getBboxDetails(CGRect bbox, CGFloat* ascent, CGFloat* descent)
                         break;
                 }
                 display.position = position;
-                display.width = 0;
                 [_displayAtoms addObject:display];
                 break;
             }
