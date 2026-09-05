@@ -635,6 +635,8 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                      @"cong" : [MTMathAtom atomWithType:kMTMathAtomRelation value:@"\u2245"],
                      @"approx" : [MTMathAtom atomWithType:kMTMathAtomRelation value:@"\u2248"],
                      @"asymp" : [MTMathAtom atomWithType:kMTMathAtomRelation value:@"\u224D"],
+                     @"smile" : [MTMathAtom atomWithType:kMTMathAtomRelation value:@"\u2323"],
+                     @"frown" : [MTMathAtom atomWithType:kMTMathAtomRelation value:@"\u2322"],
                      @"doteq" : [MTMathAtom atomWithType:kMTMathAtomRelation value:@"\u2250"],
                      @"equiv" : [MTMathAtom atomWithType:kMTMathAtomRelation value:@"\u2261"],
                      @"gg" : [MTMathAtom atomWithType:kMTMathAtomRelation value:@"\u226B"],
