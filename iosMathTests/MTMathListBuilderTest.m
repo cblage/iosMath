@@ -380,27 +380,12 @@ static NSArray* getTestDataSuperSubScript() {
 
 - (void) testSqrtAtEnd
 {
-    // A lone \sqrt with no argument at the end of the input must not crash
-    // (it previously asserted in getNextCharacter). It should parse as a
-    // radical with an empty radicand, matching \sqrt{}.
-    NSString *str = @"\\sqrt";
-    MTMathList* list = [MTMathListBuilder buildFromString:str];
-    NSString* desc = [NSString stringWithFormat:@"Error for string:%@", str];
-
-    XCTAssertNotNil(list, @"%@", desc);
-    XCTAssertEqualObjects(@(list.atoms.count), @1, @"%@", desc);
-    MTRadical* rad = list.atoms[0];
-    XCTAssertEqual(rad.type, kMTMathAtomRadical, @"%@", desc);
-    XCTAssertEqualObjects(rad.nucleus, @"", @"%@", desc);
-
-    MTMathList *subList = rad.radicand;
-    XCTAssertNotNil(subList, @"%@", desc);
-    XCTAssertEqualObjects(@(subList.atoms.count), @0, @"%@", desc);
-    XCTAssertNil(rad.degree, @"%@", desc);
-
-    // convert it back to latex
-    NSString* latex = [MTMathListBuilder mathListToString:list];
-    XCTAssertEqualObjects(latex, @"\\sqrt{}", @"%@", desc);
+    // A lone \sqrt at the end of the input is a cut-off argument: an
+    // error, never a bar over nothing.
+    NSError *error = nil;
+    MTMathList* list = [MTMathListBuilder buildFromString:@"\\sqrt" error:&error];
+    XCTAssertNil(list);
+    XCTAssertEqual(error.code, MTParseErrorCharacterNotFound);
 }
 
 - (void) testSqrtInGroup
@@ -2724,11 +2709,15 @@ static NSArray* getTestDataLargeDelimiters() {
     XCTAssertEqual(error.code, MTParseErrorInvalidCommand);
 }
 
-- (void) testRawCyrillicDropped {
-    // Post-removal: raw Cyrillic outside \text* drops to nothing.
-    // Pre-removal: U+0411–U+044E silently became Variable atoms.
+- (void) testRawCyrillicIsOrdinary {
+    // A printable non-ASCII character outside \text* is itself: one
+    // ordinary atom per character, drawn from a system face.
     MTMathList *list = [MTMathListBuilder buildFromString:@"Привет"];
-    XCTAssertEqual(list.atoms.count, (NSUInteger)0);
+    XCTAssertEqual(list.atoms.count, (NSUInteger)6);
+    for (MTMathAtom *atom in list.atoms) {
+        XCTAssertEqual(atom.type, kMTMathAtomOrdinary);
+    }
+    XCTAssertEqualObjects(((MTMathAtom *)list.atoms[0]).nucleus, @"П");
 }
 
 - (void) testRawCyrillicInTextStillWorks {
@@ -2824,16 +2813,14 @@ static NSArray* getTestDataLargeDelimiters() {
     }
 }
 
-- (void)testOversetMissingArgsAreGraceful
+- (void)testOversetMissingArgsAreErrors
 {
-    // Matches \frac: missing args at EOF produce empty rows, no crash, no parse error.
+    // Matches \frac: a missing argument at EOF is a cut-off argument, an error.
     for (NSString* latex in @[@"\\overset", @"\\overset{a}", @"\\underset", @"\\stackrel{a}"]) {
         NSError* error = nil;
         MTMathList* list = [MTMathListBuilder buildFromString:latex error:&error];
-        XCTAssertNotNil(list, @"%@", latex);
-        XCTAssertNil(error, @"%@", latex);
-        XCTAssertEqual(list.atoms.count, 1u, @"%@", latex);
-        XCTAssertEqual(((MTMathAtom*)list.atoms[0]).type, kMTMathAtomStack, @"%@", latex);
+        XCTAssertNil(list, @"%@", latex);
+        XCTAssertEqual(error.code, MTParseErrorCharacterNotFound, @"%@", latex);
     }
 }
 

@@ -1,7 +1,8 @@
 // Explicit module map for iosMath.
 // Only the intended public headers are listed here. Internal headers
-// (MTConfig.h, MTLabel.h, MTUnicode.h, render/internal/*, category files)
-// are deliberately excluded and will not appear in the Swift module interface.
+// (MTConfig.h, MTLabel.h, MTUnicode.h, the rest of render/internal/*, category
+// files) are deliberately excluded and will not appear in the Swift module
+// interface.
 module iosMath {
     // Primary rendering API
     header "render/MTMathUILabel.h"
@@ -12,6 +13,10 @@ module iosMath {
 
     // Display tree (expert use)
     header "render/MTMathListDisplay.h"
+
+    // Typesetter (expert use): the label's own layout engine, for a caller
+    // that renders a math list with no view
+    header "render/internal/MTTypesetter.h"
 
     // Math model
     header "lib/MTMathList.h"

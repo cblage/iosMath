@@ -10,7 +10,10 @@
 
 @import Foundation;
 
-#import "MTMathListDisplay.h"
+// Module-relative, as every public header imports across directories: a
+// bare sibling import resolves only under the package's own search paths,
+// and this header is exported by the module map.
+#import "render/MTMathListDisplay.h"
 
 NS_ASSUME_NONNULL_BEGIN
 

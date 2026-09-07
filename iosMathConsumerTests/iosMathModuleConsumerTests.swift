@@ -38,4 +38,15 @@ final class iosMathModuleConsumerTests: XCTestCase {
         let list: MTMathList? = label.mathList
         XCTAssertNotNil(list)
     }
+
+    // Exercises the render/internal -> render include path: MTTypesetter is
+    // exported for a consumer that typesets a math list with no view, and
+    // its header imports MTMathListDisplay across directories.
+    func testModuleExportsTheTypesetter() {
+        let list = MTMathListBuilder.build(from: #"\frac{1}{2}"#)
+        XCTAssertNotNil(list)
+        let font = MTFontManager.fontManager.defaultFont()
+        let display = MTTypesetter.createLine(for: list!, font: font, style: .display)
+        XCTAssertGreaterThan(display.width, 0)
+    }
 }
