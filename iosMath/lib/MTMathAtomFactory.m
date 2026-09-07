@@ -1009,6 +1009,9 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                     @"breve" : @"\u0306",
                     @"dot" : @"\u0307",
                     @"ddot" : @"\u0308",
+                    // amsmath's triple and quadruple dots; Latin Modern Math carries both glyphs.
+                    @"dddot" : @"\u20DB",
+                    @"ddddot" : @"\u20DC",
                     @"check" : @"\u030C",
                     @"vec" : @"\u20D7",
                     @"widehat" : @"\u0302",
