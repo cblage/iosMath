@@ -857,6 +857,11 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                      @"_" : [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@"_"],
                      @" " : [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@" "],
                      @"backslash" : [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@"\\"],
+                     // amssymb's diagonals as the plain slashes: Latin Modern Math has no
+                     // glyph at U+27CB/U+27CD or U+2571/U+2572, and a crossing drawn as
+                     // "/ \" still reads as one.
+                     @"diagup" : [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@"/"],
+                     @"diagdown" : [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@"\\"],
                      
                      // Punctuation
                      // Note: \colon is different from : which is a relation

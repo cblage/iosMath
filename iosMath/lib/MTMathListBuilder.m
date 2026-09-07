@@ -681,6 +681,75 @@ static const NSInteger kMTMaxRecursionDepth = 150;
 
 #define MTAssertNotSpace(ch) NSAssert((ch) >= 0x21 && (ch) <= 0x7E, @"Expected non space character %c", (ch));
 
+/// A TeX length as math units, braced or bare — `{-0.7em}`, `3mu`,
+/// `1.5 em` — for the spacing commands. Eighteen mu to the em; ex and the
+/// absolute units approximate through the em (an ex about 0.43em, ten
+/// points to the em). No number, or a unit this does not know, is an error.
+- (NSNumber*) readLength
+{
+    [self skipSpaces];
+    BOOL braced = NO;
+    if ([self hasCharacters]) {
+        unichar ch = [self getNextCharacter];
+        if (ch == '{') {
+            braced = YES;
+        } else {
+            [self unlookCharacter];
+        }
+    }
+    [self skipSpaces];
+    NSMutableString* number = [NSMutableString string];
+    NSMutableString* unit = [NSMutableString string];
+    while ([self hasCharacters]) {
+        unichar ch = [self getNextCharacter];
+        if (unit.length == 0 && ((ch >= '0' && ch <= '9') || ch == '.' || ch == '-' || ch == '+')) {
+            [number appendString:[NSString stringWithCharacters:&ch length:1]];
+        } else if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
+            [unit appendString:[NSString stringWithCharacters:&ch length:1]];
+        } else if (ch == ' ' && unit.length == 0) {
+            // Between the number and its unit.
+            continue;
+        } else {
+            [self unlookCharacter];
+            break;
+        }
+    }
+    if (braced) {
+        [self skipSpaces];
+        if (![self expectCharacter:'}']) {
+            [self setError:MTParseErrorCharacterNotFound message:@"Missing }"];
+            return nil;
+        }
+    }
+    if (number.length == 0) {
+        [self setError:MTParseErrorInvalidCommand message:@"Missing length"];
+        return nil;
+    }
+    double value = number.doubleValue;
+    double mu;
+    if ([unit isEqualToString:@"mu"]) {
+        mu = value;
+    } else if ([unit isEqualToString:@"em"] || [unit isEqualToString:@"quad"]) {
+        mu = value * 18;
+    } else if ([unit isEqualToString:@"ex"]) {
+        mu = value * 18 * 0.43;
+    } else if ([unit isEqualToString:@"pt"] || [unit isEqualToString:@"px"]
+               || [unit isEqualToString:@"bp"]) {
+        mu = value * 1.8;
+    } else if ([unit isEqualToString:@"mm"]) {
+        mu = value * 2.845 * 1.8;
+    } else if ([unit isEqualToString:@"cm"]) {
+        mu = value * 28.45 * 1.8;
+    } else if ([unit isEqualToString:@"in"]) {
+        mu = value * 72.27 * 1.8;
+    } else {
+        NSString* message = [NSString stringWithFormat:@"Unknown length unit %@", unit];
+        [self setError:MTParseErrorInvalidCommand message:message];
+        return nil;
+    }
+    return @(mu);
+}
+
 - (BOOL) expectCharacter:(unichar) ch
 {
     MTAssertNotSpace(ch);
@@ -938,6 +1007,23 @@ static const NSInteger kMTMaxRecursionDepth = 150;
         }
         MTMathAtom* table = [self buildTable:env firstList:nil row:NO];
         return table;
+    } else if ([command isEqualToString:@"hspace"] || [command isEqualToString:@"kern"]
+               || [command isEqualToString:@"mkern"]) {
+        // Horizontal space by length — `\hspace{-0.7em}`, `\hspace*{1em}`
+        // (the star is TeX's no-discard, nothing here), `\kern 2pt`,
+        // `\mkern-3mu` — as a space atom of that many math units.
+        if ([command isEqualToString:@"hspace"] && [self hasCharacters]) {
+            unichar ch = [self getNextCharacter];
+            if (ch != '*') {
+                [self unlookCharacter];
+            }
+        }
+        NSNumber* mu = [self readLength];
+        if (!mu) {
+            // readLength already set the error.
+            return nil;
+        }
+        return [[MTMathSpace alloc] initWithSpace:mu.floatValue];
     } else if ([command isEqualToString:@"color"]) {
         // A color command has 2 arguments
         NSString* colorStr = [self readColor];
