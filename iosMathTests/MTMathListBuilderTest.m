@@ -2728,6 +2728,29 @@ static NSArray* getTestDataLargeDelimiters() {
     XCTAssertEqualObjects(((MTTextAtom *)list.atoms[0]).text, @"Привет");
 }
 
+- (void) testShaIsTheCyrillicCapital {
+    // \Sha, the Tate-Shafarevich group's symbol, is one ordinary atom
+    // whose nucleus is the Cyrillic capital U+0428 — a glyph the math
+    // font lacks and MTFont's cascade draws — and it round-trips by name.
+    NSError *error = nil;
+    MTMathList *list = [MTMathListBuilder buildFromString:@"\\Sha" error:&error];
+    XCTAssertNotNil(list);
+    XCTAssertNil(error);
+    XCTAssertEqual(list.atoms.count, (NSUInteger)1);
+    MTMathAtom *sha = list.atoms[0];
+    XCTAssertEqual(sha.type, kMTMathAtomOrdinary);
+    XCTAssertEqualObjects(sha.nucleus, @"Ш");
+    XCTAssertEqualObjects([MTMathListBuilder mathListToString:list], @"\\Sha ");
+
+    // In its place in a Birch-Swinnerton-Dyer statement: the command ends
+    // at the parenthesis, and the group's argument follows as atoms.
+    MTMathList *statement = [MTMathListBuilder buildFromString:@"\\#\\Sha(E/K) < \\infty" error:&error];
+    XCTAssertNotNil(statement);
+    XCTAssertNil(error);
+    XCTAssertEqualObjects(((MTMathAtom *)statement.atoms[1]).nucleus, @"Ш");
+    XCTAssertEqual(((MTMathAtom *)statement.atoms[2]).type, kMTMathAtomOpen);
+}
+
 - (void)testStackCommandSpecArgRoles
 {
     MTMathStackCommandSpec* overset = [MTMathAtomFactory stackCommandSpec:@"overset"];

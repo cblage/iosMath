@@ -881,6 +881,10 @@ NSString *const MTSymbolDegree = @"\u00B0"; // \circ
                      @"ell" : [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@"\u2113"],
                      @"wp" : [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@"\u2118"],
                      @"Re" : [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@"\u211C"],
+                     // The Tate-Shafarevich group's Sha, the Cyrillic capital
+                     // U+0428: the math font has no glyph for it, and MTFont's
+                     // cascade draws it from STIX Two Math.
+                     @"Sha" : [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@"\u0428"],
                      @"mho" : [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@"\u2127"],
                      @"aleph" : [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@"\u2135"],
                      @"forall" : [MTMathAtom atomWithType:kMTMathAtomOrdinary value:@"\u2200"],

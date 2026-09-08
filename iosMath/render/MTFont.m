@@ -42,6 +42,30 @@
     NSMutableDictionary<NSString*, NSNumber*>* _glyphsByName;
 }
 
+/// THE CASCADE BEHIND THE MATH FONT: the faces CoreText draws a character
+/// from when Latin Modern Math has no glyph for it. A text run is a CTLine,
+/// which substitutes per character; with no list of its own the substitute
+/// was the system's — Helvetica for Cyrillic, so a Tate–Shafarevich Ш stood
+/// sans-serif inside a serif formula. STIX Two Math, which macOS ships, is a
+/// math face with Cyrillic and the wide symbol range, so a character the
+/// math font lacks is drawn by a math face; Times New Roman answers what
+/// that lacks; the system's cascade still follows for the rest. Built once:
+/// a descriptor is immutable and every sized copy shares it.
++ (CTFontDescriptorRef)cascadeDescriptor
+{
+    static CTFontDescriptorRef descriptor;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        NSArray* cascade = @[
+            (__bridge_transfer id)CTFontDescriptorCreateWithNameAndSize(CFSTR("STIXTwoMath-Regular"), 0),
+            (__bridge_transfer id)CTFontDescriptorCreateWithNameAndSize(CFSTR("TimesNewRomanPSMT"), 0),
+        ];
+        descriptor = CTFontDescriptorCreateWithAttributes(
+            (__bridge CFDictionaryRef)@{ (__bridge NSString*)kCTFontCascadeListAttribute : cascade });
+    });
+    return descriptor;
+}
+
 - (instancetype)initFontWithName:(NSString *)name size:(CGFloat)size
 {
     self = [super init];
@@ -63,7 +87,7 @@
         CFRelease(fontDataProvider);
         if (!_defaultCGFont) { return nil; }
 
-        _ctFont = CTFontCreateWithGraphicsFont(self.defaultCGFont, size, nil, nil);
+        _ctFont = CTFontCreateWithGraphicsFont(self.defaultCGFont, size, nil, [MTFont cascadeDescriptor]);
 
         NSString* mathTablePlist = [bundle pathForResource:name ofType:@"plist" inDirectory:@"fonts"];
         NSDictionary* dict = mathTablePlist ? [NSDictionary dictionaryWithContentsOfFile:mathTablePlist] : nil;
@@ -135,7 +159,7 @@
 {
     MTFont* copyFont = [[[self class] alloc] init];
     copyFont.defaultCGFont = self.defaultCGFont;
-    CTFontRef newCtFont = CTFontCreateWithGraphicsFont(self.defaultCGFont, size, nil, nil);
+    CTFontRef newCtFont = CTFontCreateWithGraphicsFont(self.defaultCGFont, size, nil, [MTFont cascadeDescriptor]);
     copyFont.ctFont = newCtFont;
     copyFont.rawMathTable = self.rawMathTable;
     copyFont.rootFont = root;

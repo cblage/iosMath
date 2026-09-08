@@ -7,8 +7,10 @@
 //
 
 #import <XCTest/XCTest.h>
+#import <CoreText/CoreText.h>
 #import "MTFontManager.h"
 #import "MTFont.h"
+#import "MTFont+Internal.h"
 
 @interface MTFontManagerTest : XCTestCase
 @end
@@ -73,6 +75,36 @@
     XCTAssertNotNil(font, @"Font should load at a non-default size");
     XCTAssertEqualWithAccuracy(font.fontSize, requestedSize, 0.001,
                                @"Returned font should have the requested size");
+}
+
+// Test 6: THE CASCADE. A character the math font has no glyph for is drawn
+// through the font's own cascade — STIX Two Math, a math face macOS ships,
+// then Times New Roman — never through the system's, which drew Cyrillic
+// from Helvetica. Proven the way the typesetter draws a text run: a CTLine
+// over the font, the run's font read back. The root font and a sized copy
+// alike, since each CTFont is created on its own.
+- (void)testCascadeDrawsCyrillicFromAMathFace
+{
+    MTFont *font = [MTFontManager.fontManager fontWithName:MTFontNameLatinModern size:20];
+    XCTAssertNotNil(font, @"The bundled font should load");
+    NSArray<MTFont *> *fonts = @[ font, [font copyFontWithSize:14] ];
+    for (MTFont *candidate in fonts) {
+        NSAttributedString *text = [[NSAttributedString alloc]
+            initWithString:@"Ш"
+                attributes:@{ (__bridge NSString *)kCTFontAttributeName : (__bridge id)candidate.ctFont }];
+        CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)text);
+        NSArray *runs = (__bridge NSArray *)CTLineGetGlyphRuns(line);
+        XCTAssertEqual(runs.count, (NSUInteger)1, @"One character, one run");
+        CTRunRef run = (__bridge CTRunRef)runs[0];
+        NSDictionary *attributes = (__bridge NSDictionary *)CTRunGetAttributes(run);
+        CTFontRef drawn = (__bridge CTFontRef)attributes[(__bridge NSString *)kCTFontAttributeName];
+        NSString *drawnName = (__bridge_transfer NSString *)CTFontCopyPostScriptName(drawn);
+        // Outside the assertion: a literal's comma splits the macro's arguments.
+        NSArray<NSString *> *cascade = @[ @"STIXTwoMath-Regular", @"TimesNewRomanPSMT" ];
+        XCTAssertTrue([cascade containsObject:drawnName],
+                      @"The Cyrillic capital should come from the cascade, not %@", drawnName);
+        CFRelease(line);
+    }
 }
 
 @end
